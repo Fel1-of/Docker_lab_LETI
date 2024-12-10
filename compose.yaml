@@ -1,0 +1,120 @@
+networks:
+  net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+
+services:
+  frontend:
+    build:
+      dockerfile: digital-gia-frontend.Dockerfile
+      context: .
+      args:
+        directory: digital-gia-frontend
+    environment:
+      NODE_ENV: production
+    networks:
+      - net
+    ports:
+      - "8086:80"
+
+  postgres:
+    image: postgres:14-alpine3.20
+    environment:
+      POSTGRES_HOST: localhost
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      DUMP_FILE: dump.dump
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - net
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./digital-gia-postgres/dump:/dump
+      - ./digital-gia-postgres/init-scripts:/docker-entrypoint-initdb.d
+
+  pgbackups:
+    image: prodrigestivill/postgres-backup-local
+    restart: always
+    volumes:
+      - ./backups:/backups
+    networks:
+      - net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_EXTRA_OPTS: "-Z9 -Fc"
+      SCHEDULE: "@daily"
+      BACKUP_ON_START: true
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+
+  server:
+    build:
+      dockerfile: digital-gia-backend.Dockerfile
+      context: .
+      args:
+        directory: digital-gia-backend
+    image: digital-gia-docker-server:latest
+    command: ["/bin/true"] # Чтобы server не запускался
+
+  backend:
+    image: digital-gia-docker-server:latest
+    volumes:
+      - ./logs:/digital-gia-backend/logs
+      - ./data:/digital-gia-backend/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      FRONTEND_APP_URL: http://localhost:3007
+      FRONTEND_PROXY_URL: http://localhost:8086
+      API_URL: http://localhost:3007/gia/api
+      PORT: 3000
+      DB_HOST: postgres
+      DB_USER: ${POSTGRES_USER}
+      DB_PASS: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      DB_SCHEMA: public
+    networks:
+      - net
+
+  migrations:
+    image: digital-gia-docker-server:latest
+    command: ["sequelize-cli", "db:migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_USER: ${POSTGRES_USER}
+      DB_PASS: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+    networks:
+      - net
+
+  proxy:
+    image: nginx:alpine3.20
+    ports:
+      - "3007:80"
+    networks:
+      - net
+    volumes:
+      - ./proxy.nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend

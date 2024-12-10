@@ -1,0 +1,4 @@
+DO $$ BEGIN
+    DROP SCHEMA public CASCADE;
+    CREATE SCHEMA public;
+END $$;

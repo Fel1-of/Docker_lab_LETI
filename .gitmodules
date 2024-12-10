@@ -1,0 +1,8 @@
+[submodule "digital-gia-backend"]
+	path = digital-gia-backend
+	url = https://gitlab.etu.ru/orpk/gia/digital-gia-backend.git
+	branch = fixes-after-2024-11-19
+[submodule "digital-gia-frontend"]
+	path = digital-gia-frontend
+	url = https://gitlab.etu.ru/orpk/gia/digital-gia-frontend.git
+	branch = fixes-after-2024-11-19
