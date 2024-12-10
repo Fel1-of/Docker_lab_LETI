@@ -11,7 +11,7 @@ RUN apt-get update &&\
      rm -rf /var/lib/apt/lists/*
 
 COPY $directory/yarn.lock $directory/package.json $directory/.npmrc ./
-RUN yarn install --frozen-lockfile --production=false
+RUN yarn install --frozen-lockfile --production=false && yarn cache clean
 COPY .git /.git
 COPY $directory .
 RUN yarn run prod-build && yarn cache clean

@@ -12,8 +12,6 @@ services:
       context: .
       args:
         directory: digital-gia-frontend
-    environment:
-      NODE_ENV: production
     networks:
       - net
     ports:
@@ -99,11 +97,11 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      NODE_ENV: production
       DB_HOST: postgres
       DB_USER: ${POSTGRES_USER}
       DB_PASS: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
+      DB_SCHEMA: public
     networks:
       - net
 
